@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Esfera de Dyson - 3 Anéis</title>
+  
+  <link rel="stylesheet" href="css/style.css">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+
+<body>
+
+<div id="info">Esfera de Dyson • Arraste para rotacionar • Role para zoom</div>
+<button id="fullRotateBtn">Testar: 1 volta completa 360° no Anel 1</button>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+  async function loadConfig() {
+    try {
+      const response = await fetch('assets/config.json');
+      if (!response.ok) throw new Error('Config não encontrada');
+      return await response.json();
+    } catch (err) {
+      console.error('Erro ao carregar config:', err);
+      // fallback básico
+      return {
+        background: 0x000000,
+        star: { radius: 18, color: 0xffeeaa, emissive: 0xffaa44, emissiveIntensity: 1.8 },
+        rings: [
+          { radius: 45, thickness: 1.8, color: 0x88ffdd, speed: 0.008, tiltX: 0.12, tiltY: 0.05 },
+          { radius: 75, thickness: 2.2, color: 0x44aaff, speed: 0.005, tiltX: -0.08, tiltY: 0.15 },
+          { radius: 110, thickness: 3.0, color: 0xff88cc, speed: 0.003, tiltX: 0.04, tiltY: -0.1 }
+        ],
+        camera: { fov: 55, position: [0, 40, 120] }
+      };
+    }
+  }
+
+  loadConfig().then(config => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(config.background);
+
+    const camera = new THREE.PerspectiveCamera(
+      config.camera.fov,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      2000
+    );
+    camera.position.set(...config.camera.position);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.04;
+    controls.minDistance = 30;
+    controls.maxDistance = 400;
+
+    scene.add(new THREE.PointLight(0xffffff, 3.5));
+    scene.add(new THREE.AmbientLight(0x112244, 0.4));
+
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08 });
+
+    // Estrela
+    const starGeo = new THREE.SphereGeometry(config.star.radius, 48, 32);
+    const starMat = new THREE.MeshStandardMaterial({
+      color: config.star.color,
+      emissive: config.star.emissive,
+      emissiveIntensity: config.star.emissiveIntensity,
+      metalness: 0.1,
+      roughness: 0.4
+    });
+    const star = new THREE.Mesh(starGeo, starMat);
+    scene.add(star);
+    scene.add(new THREE.Mesh(starGeo, glowMat).scale.setScalar(1.15));
+
+    // Anéis
+    const rings = [];
+    config.rings.forEach(rCfg => {
+      const group = new THREE.Group();
+      const geo = new THREE.TorusGeometry(rCfg.radius, rCfg.thickness, 16, 160);
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: rCfg.color,
+        metalness: 0.95,
+        roughness: 0.12,
+        clearcoat: 0.9,
+        emissive: rCfg.color,
+        emissiveIntensity: 0.4
+      });
+      const ring = new THREE.Mesh(geo, mat);
+      ring.rotation.x = Math.PI * rCfg.tiltX;
+      ring.rotation.y = Math.PI * rCfg.tiltY;
+      group.add(ring);
+      group.add(new THREE.Mesh(geo, glowMat).scale.setScalar(1.08));
+      group.userData = { speed: rCfg.speed };
+      scene.add(group);
+      rings.push(group);
+    });
+
+    // Teste 360°
+    let fullTurnRing = null;
+    let fullTurnStart = null;
+    const duration = 4000;
+
+    document.getElementById('fullRotateBtn').addEventListener('click', () => {
+      if (rings[0]) {
+        fullTurnRing = rings[0];
+        fullTurnStart = performance.now();
+        fullTurnRing.userData.startAngle = fullTurnRing.rotation.z;
+      }
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      star.rotation.y += 0.0008;
+
+      rings.forEach(ring => {
+        if (ring === fullTurnRing) return;
+        ring.rotation.z += ring.userData.speed;
+      });
+
+      if (fullTurnRing && fullTurnStart) {
+        const elapsed = performance.now() - fullTurnStart;
+        let prog = elapsed / duration;
+        if (prog >= 1) {
+          prog = 1;
+          fullTurnStart = null;
+          fullTurnRing = null;
+        }
+        const eased = 1 - (1 - prog) ** 3;
+        fullTurnRing.rotation.z = fullTurnRing.userData.startAngle + Math.PI * 2 * eased;
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  });
+</script>
+</body>
+</html>

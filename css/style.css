@@ -1,0 +1,49 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #000;
+  font-family: system-ui, -apple-system, sans-serif;
+  height: 100vh;
+}
+
+#info {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
+  color: #aaffee;
+  background: rgba(0, 0, 20, 0.65);
+  padding: 0.8rem 1.2rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(68, 255, 170, 0.3);
+  font-size: 0.95rem;
+  pointer-events: none;
+  user-select: none;
+  backdrop-filter: blur(4px);
+}
+
+#fullRotateBtn {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  z-index: 10;
+  padding: 0.9rem 1.6rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #000;
+  background: linear-gradient(135deg, #66ffcc, #33cc99);
+  border: none;
+  border-radius: 0.8rem;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(51, 204, 153, 0.45);
+  transition: all 0.18s ease;
+}
+
+#fullRotateBtn:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 10px 30px rgba(51, 204, 153, 0.6);
+}
+
+#fullRotateBtn:active {
+  transform: translateY(1px);
+}
